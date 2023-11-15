@@ -38,6 +38,7 @@ private:
     int32_t mRectHeight;
     int32_t mRectWidth;
     int32_t mMargin;
+    bool mUseKF;
 
     int32_t mLpos;
     int32_t mRpos;

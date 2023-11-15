@@ -24,6 +24,7 @@ void LaneDetector<PREC>::setConfiguration(const YAML::Node& config)
     mRectWidth = config["IMAGE"]["RECTWIDTH"].as<int32_t>();
     mRectHeight = config["IMAGE"]["RECTHEIGHT"].as<int32_t>();
     mMargin = config["IMAGE"]["MARGIN"].as<int32_t>();
+    mUseKF = config["IMAGE"]["KALMANFILTER"];
 
     mRectLeft = cv::Rect(0, mOffset-10, mRectWidth, mRectHeight);
     mRectRight = cv::Rect(mRectWidth, mOffset-10, mRectWidth, mRectHeight);
@@ -50,18 +51,22 @@ std::vector<int32_t> LaneDetector<PREC>::getLposRpos(const cv::Mat& mFrame)
     mLpos = findEdges(mFrame(mRectLeft), Direction::LEFT) - mMargin;
 	mRpos = findEdges(mFrame(mRectRight), Direction::RIGHT) + mRectWidth + mMargin;
 
-    // // predict
-	// if (mLpos < 0)
-	// 	mLpos = mImproved.at<float>(0);
+    // predict
+    // if (mUseKF)
+    // {
+    //     std::cout << "mUseKF: " << mUseKF << std::endl;
+    //     if (mLpos < 0)
+    //         mLpos = mImproved.at<float>(0);
 
-	// if (mRpos > 640)
-	// 	mRpos = mImproved.at<float>(1);
+    //     if (mRpos > 640)
+    //         mRpos = mImproved.at<float>(1);
 
-	// mMeasurement.at<float>(0) = mLpos;
-	// mMeasurement.at<float>(1) = mRpos;
+    //     mMeasurement.at<float>(0) = mLpos;
+    //     mMeasurement.at<float>(1) = mRpos;
 
-	// mKF.correct(mMeasurement);
-	// mImproved = mKF.predict();
+    //     mKF.correct(mMeasurement);
+    //     mImproved = mKF.predict();
+    // }
 
     answer.push_back(mLpos);
     answer.push_back(mRpos);
@@ -72,13 +77,17 @@ std::vector<int32_t> LaneDetector<PREC>::getLposRpos(const cv::Mat& mFrame)
 template <typename PREC>
 int32_t LaneDetector<PREC>::findEdges(const cv::Mat& mFrame, Direction direction)
 {
-	cv::Mat gray, fimg, blr, dy;
+	cv::Mat gray, fimg, blr, dy, debug;
     cv::cvtColor(mFrame, gray, cv::COLOR_BGR2GRAY);
 	gray.convertTo(fimg, CV_32F);
 	GaussianBlur(fimg, blr, cv::Size(), 1.);
-	Sobel(blr, dy, CV_32F, 0, 1);
+	Sobel(fimg, dy, CV_32F, 0, 1);
 	cv::Mat kernel = getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
 	morphologyEx(dy, dy, cv::MORPH_CLOSE, kernel);
+
+    GaussianBlur(gray, debug, cv::Size(), 1.);
+    Sobel(gray, debug, -1, 0, 1);
+    morphologyEx(debug, debug, cv::MORPH_CLOSE, kernel);
 
 	double minValue, maxValue;
 	cv::Point minLoc, maxLoc;
@@ -87,11 +96,24 @@ int32_t LaneDetector<PREC>::findEdges(const cv::Mat& mFrame, Direction direction
 	cv::Mat roi = dy.row(halfY);
 	minMaxLoc(roi, &minValue, &maxValue, &minLoc, &maxLoc);
 
+    cv::cvtColor(debug, debug, cv::COLOR_GRAY2BGR);
+    rectangle(debug, cv::Rect(maxLoc.x-5, halfY-5, 10, 10), cv::Scalar(0, 0, 255), 2);
+    if (direction == Direction::LEFT)
+    {
+        cv::imshow("sobelLeft", debug);
+        cv::waitKey(10);
+    }
+    else
+    {
+        cv::imshow("sobelRight", debug);
+        cv::waitKey(10);
+    }
+
 	int32_t threshold = 90;
 	// int32_t xCoord = (maxValue > threshold) ? maxLoc.x : (direction == Direction::LEFT) ? 0 : 320;
-    int32_t interval = 40;
+    int32_t interval = 50;
 	int32_t xCoord = (maxValue > threshold && std::abs(minLoc.x - maxLoc.x) < interval) ? maxLoc.x : (direction == Direction::LEFT) ? 0 : 320;
-    std::cout << maxValue << maxLoc << minValue << minLoc << std::endl;
+    //std::cout << maxValue << maxLoc << minValue << minLoc << std::endl;
 
 	return xCoord;
 }
@@ -115,6 +137,8 @@ void LaneDetector<PREC>::visualizeLposRpos(cv::Mat& mFrame)
 
     // draw ractangle
     rectangle(mFrame, cv::Rect(0, mOffset-10, mRectWidth * 2, mRectHeight), cv::Scalar(0, 0, 255), 2);
+    rectangle(mFrame, cv::Rect((xLeft+xRight)*0.5-5, mOffset-5, 10, 10), cv::Scalar(0, 0, 255), 2);
+    rectangle(mFrame, cv::Rect(mImageWidth*0.5-5, mOffset-5, 10, 10), cv::Scalar(0, 255, 0), 2);
 
     cv::imshow("ROI", mFrame);
     cv::waitKey(10);

@@ -15,13 +15,6 @@
 
 namespace Xycar {
 
-// enum class Direction : uint8_t
-// {
-// 	// lane direction
-// 	LEFT = 0,
-// 	RIGHT = 1
-// };
-
 /**
  * @brief Lane Keeping System for searching and keeping Hough lines using Hough, Moving average and PID control
  *
@@ -52,9 +45,6 @@ public:
      * @brief Run Lane Keeping System
      */
     void run();
-
-    int32_t findEdges(const cv::Mat& img, Direction direction);
-    void drawCross(cv::Mat& img, cv::Point pt, cv::Scalar color);
 
 private:
     /**

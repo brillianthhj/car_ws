@@ -64,70 +64,33 @@ void LaneKeepingSystem<PREC>::run()
 
         if (mFrame.empty())
             continue;
-
         // Step1) Get ptsLeft, ptsRight
         std::vector<int32_t> pts = mLaneDetector->getLposRpos(mFrame);
 
-        // LaneKeepingSystem::LaneVisionMsg laneMessage;
-        // laneMessage.lpos = pts[0];
-        // laneMessage.rpos = pts[1];
+        perception_msgs::LaneVisionMsg laneMessage;
+        laneMessage.lpos = pts[0];
+        laneMessage.rpos = pts[1];
 
-        // mMsgPublisher.publish(laneMessage);
+        mMsgPublisher.publish(laneMessage);
 
         // Step2) Draw lanes
         mLaneDetector->visualizeLposRpos(mFrame);
 
-        // Step3) Set steering based on ptsLeft, ptsRight
+        // Step3) MovingAverageFilter.cpp & PIDController.cpp steering
+        int32_t error = static_cast<int32_t>((pts[0] + pts[1]) * 0.5 - 320);
+        PREC angle = mPID->getControlOutput(error);
 
-        // Step4) MovingAverageFilter.cpp & PIDController.cpp steering
+        // Step4) Run drive()
+        drive(angle);
 
-        // Step5) Run drive()
     }
-}
-
-template <typename PREC>
-int32_t LaneKeepingSystem<PREC>::findEdges(const cv::Mat& img, Direction direction)
-{
-	cv::Mat tmp, fimg, blr, dy;
-    cv::cvtColor(img, tmp, cv::COLOR_BGR2GRAY);
-	tmp.convertTo(fimg, CV_32F);
-	GaussianBlur(fimg, blr, cv::Size(), 1.);
-	Sobel(blr, dy, CV_32F, 0, 1);
-	cv::Mat kernel = getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
-	morphologyEx(dy, dy, cv::MORPH_CLOSE, kernel);
-
-	double maxValue;
-	cv::Point maxLoc;
-
-	int32_t halfY = fimg.rows/2;
-	cv::Mat roi = dy.row(halfY);
-	minMaxLoc(roi, NULL, &maxValue, NULL, &maxLoc);
-
-	int32_t threshold = 90;
-	int32_t xCoord = (maxValue > threshold) ? maxLoc.x : (direction == Direction::LEFT) ? 0 : 320;
-
-	return xCoord;
-}
-
-template <typename PREC>
-void LaneKeepingSystem<PREC>::drawCross(cv::Mat& img, cv::Point pt, cv::Scalar color)
-{
-	int32_t span = 5;
-	line(img, pt + cv::Point(-span, -span), pt + cv::Point(span, span), color, 1, cv::LINE_AA);
-	line(img, pt + cv::Point(-span, span), pt + cv::Point(span, -span), color, 1, cv::LINE_AA);
 }
 
 template <typename PREC>
 void LaneKeepingSystem<PREC>::imageCallback(const sensor_msgs::Image& message)
 {
-    std::cout << "imageCallback method called." << std::endl;
     cv::Mat src = cv::Mat(message.height, message.width, CV_8UC3, const_cast<uint8_t*>(&message.data[0]), message.step);
-    // std::cout << "hello Image: "
-    //     << "cols: " << src.cols << ", "
-    //     << "rows: " << src.rows << std::endl;
     cv::cvtColor(src, mFrame, cv::COLOR_RGB2BGR);
-    // cv::imshow("Woi", mFrame);
-    // cv::waitKey(10);
 }
 
 template <typename PREC>
