@@ -1,10 +1,7 @@
 <launch>
-    <group ns="lab">
-        <!-- ROSBag 파일로 비전시스템을 실험합니다. -->
-        <node pkg="rosbag" type="play" name="rosbag_play" output="screen" required="true" args="-l /home/nvidia/team_ws/problem.bag /usb_cam/image_raw:=usb_cam/image_raw"/>
+	<node pkg="rosbag" type="play" name="rosbag_play" output="screen" required="true" args="-l /home/nvidia/team_ws/problem.bag /usb_cam/image_raw:=usb_cam/image_raw"/>
 
-        <!-- drive -->
-        <node name="lane_keeping_system_node" pkg="lane_keeping_system" type="lane_keeping_system_node" output="screen"/>
-        <param name="config_path" type="str" value="$(find lane_keeping_system)/config/config.yaml"/>
-    </group>
+	<!-- drive -->
+	<node name="lane_keeping_system_node" pkg="lane_keeping_system" type="lane_keeping_system_node" output="screen"/>
+	<param name="config_path" type="str" value="$(find lane_keeping_system)/config/config.yaml"/>
 </launch>
